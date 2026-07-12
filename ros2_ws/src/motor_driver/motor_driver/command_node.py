@@ -1,6 +1,6 @@
 import rclpy
+from geometry_msgs.msg import Twist
 from rclpy.node import Node
-from std_msgs.msg import String
 
 
 class CommandNode(Node):
@@ -8,8 +8,8 @@ class CommandNode(Node):
         super().__init__('command_node')
 
         self.publisher_ = self.create_publisher(
-            String,
-            'motor_cmd',
+            Twist,
+            '/cmd_vel',
             10
         )
 
@@ -21,23 +21,46 @@ class CommandNode(Node):
             'stop'
         ]
 
-        self.get_logger().info(
-            'Command Node Started!'
-        )
-
+        self.get_logger().info('Command Node Started!')
         self.get_logger().info(
             'Available commands: '
             'forward, backward, left, right, stop, quit'
         )
 
     def publish_command(self, command):
-        msg = String()
-        msg.data = command
+        msg = Twist()
+
+        # 모든 속도값을 먼저 0으로 초기화
+        msg.linear.x = 0.0
+        msg.linear.y = 0.0
+        msg.linear.z = 0.0
+
+        msg.angular.x = 0.0
+        msg.angular.y = 0.0
+        msg.angular.z = 0.0
+
+        if command == 'forward':
+            msg.linear.x = 0.5
+
+        elif command == 'backward':
+            msg.linear.x = -0.5
+
+        elif command == 'left':
+            msg.angular.z = 0.8
+
+        elif command == 'right':
+            msg.angular.z = -0.8
+
+        elif command == 'stop':
+            # 모든 값이 이미 0이므로 별도 변경 없음
+            pass
 
         self.publisher_.publish(msg)
 
         self.get_logger().info(
-            f'Published: {msg.data}'
+            f'Published command: {command} | '
+            f'linear.x={msg.linear.x:.2f}, '
+            f'angular.z={msg.angular.z:.2f}'
         )
 
 
@@ -74,7 +97,9 @@ def main(args=None):
 
     finally:
         node.destroy_node()
-        rclpy.shutdown()
+
+        if rclpy.ok():
+            rclpy.shutdown()
 
 
 if __name__ == '__main__':

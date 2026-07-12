@@ -1,6 +1,6 @@
 import rclpy
+from geometry_msgs.msg import Twist
 from rclpy.node import Node
-from std_msgs.msg import String
 
 
 class MotorDriverNode(Node):
@@ -8,9 +8,9 @@ class MotorDriverNode(Node):
         super().__init__('motor_driver_node')
 
         self.subscription = self.create_subscription(
-            String,
-            'motor_cmd',
-            self.motor_command_callback,
+            Twist,
+            '/cmd_vel',
+            self.velocity_command_callback,
             10
         )
 
@@ -18,41 +18,34 @@ class MotorDriverNode(Node):
             'Motor Driver Node Started!'
         )
 
-    def motor_command_callback(self, msg):
-        command = msg.data
+    def velocity_command_callback(self, msg):
+        linear_x = msg.linear.x
+        angular_z = msg.angular.z
 
         self.get_logger().info(
-            f'Received motor command: {command}'
+            f'Received velocity command | '
+            f'linear.x={linear_x:.2f}, '
+            f'angular.z={angular_z:.2f}'
         )
 
-        if command == 'forward':
-            self.get_logger().info(
-                'Move Forward'
-            )
+        if linear_x > 0.0 and angular_z == 0.0:
+            self.get_logger().info('Move Forward')
 
-        elif command == 'backward':
-            self.get_logger().info(
-                'Move Backward'
-            )
+        elif linear_x < 0.0 and angular_z == 0.0:
+            self.get_logger().info('Move Backward')
 
-        elif command == 'left':
-            self.get_logger().info(
-                'Turn Left'
-            )
+        elif linear_x == 0.0 and angular_z > 0.0:
+            self.get_logger().info('Turn Left')
 
-        elif command == 'right':
-            self.get_logger().info(
-                'Turn Right'
-            )
+        elif linear_x == 0.0 and angular_z < 0.0:
+            self.get_logger().info('Turn Right')
 
-        elif command == 'stop':
-            self.get_logger().info(
-                'Motor Stop'
-            )
+        elif linear_x == 0.0 and angular_z == 0.0:
+            self.get_logger().info('Motor Stop')
 
         else:
-            self.get_logger().warn(
-                f'Unknown Command: {command}'
+            self.get_logger().info(
+                'Combined linear and angular motion'
             )
 
 
@@ -61,10 +54,19 @@ def main(args=None):
 
     node = MotorDriverNode()
 
-    rclpy.spin(node)
+    try:
+        rclpy.spin(node)
 
-    node.destroy_node()
-    rclpy.shutdown()
+    except KeyboardInterrupt:
+        node.get_logger().info(
+            'Keyboard interrupt received.'
+        )
+
+    finally:
+        node.destroy_node()
+
+        if rclpy.ok():
+            rclpy.shutdown()
 
 
 if __name__ == '__main__':
