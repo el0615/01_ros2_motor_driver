@@ -13,7 +13,7 @@ class CommandNode(Node):
             10
         )
 
-        self.commands = [
+        self.valid_commands = [
             'forward',
             'backward',
             'left',
@@ -21,23 +21,18 @@ class CommandNode(Node):
             'stop'
         ]
 
-        self.command_index = 0
-
-        self.timer = self.create_timer(
-            1.0,
-            self.publish_command
-        )
-
         self.get_logger().info(
             'Command Node Started!'
         )
 
-    def publish_command(self):
-        msg = String()
+        self.get_logger().info(
+            'Available commands: '
+            'forward, backward, left, right, stop, quit'
+        )
 
-        msg.data = self.commands[
-            self.command_index
-        ]
+    def publish_command(self, command):
+        msg = String()
+        msg.data = command
 
         self.publisher_.publish(msg)
 
@@ -45,21 +40,41 @@ class CommandNode(Node):
             f'Published: {msg.data}'
         )
 
-        self.command_index += 1
-
-        if self.command_index >= len(self.commands):
-            self.command_index = 0
-
 
 def main(args=None):
     rclpy.init(args=args)
 
     node = CommandNode()
 
-    rclpy.spin(node)
+    try:
+        while rclpy.ok():
+            command = input(
+                'Enter command '
+                '(forward/backward/left/right/stop/quit): '
+            ).strip().lower()
 
-    node.destroy_node()
-    rclpy.shutdown()
+            if command == 'quit':
+                node.get_logger().info(
+                    'Command Node shutting down.'
+                )
+                break
+
+            if command in node.valid_commands:
+                node.publish_command(command)
+
+            else:
+                node.get_logger().warn(
+                    f'Unknown command: {command}'
+                )
+
+    except KeyboardInterrupt:
+        node.get_logger().info(
+            'Keyboard interrupt received.'
+        )
+
+    finally:
+        node.destroy_node()
+        rclpy.shutdown()
 
 
 if __name__ == '__main__':
