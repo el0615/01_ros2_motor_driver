@@ -29,24 +29,60 @@ class MotorDriverNode(Node):
         )
 
         if linear_x > 0.0 and angular_z == 0.0:
-            self.get_logger().info('Move Forward')
+            self.move_forward(linear_x)
 
         elif linear_x < 0.0 and angular_z == 0.0:
-            self.get_logger().info('Move Backward')
+            self.move_backward(abs(linear_x))
 
         elif linear_x == 0.0 and angular_z > 0.0:
-            self.get_logger().info('Turn Left')
+            self.turn_left(angular_z)
 
         elif linear_x == 0.0 and angular_z < 0.0:
-            self.get_logger().info('Turn Right')
+            self.turn_right(abs(angular_z))
 
         elif linear_x == 0.0 and angular_z == 0.0:
-            self.get_logger().info('Motor Stop')
+            self.stop()
 
         else:
-            self.get_logger().info(
-                'Combined linear and angular motion'
+            self.move_combined(
+                linear_speed=linear_x,
+                angular_speed=angular_z
             )
+
+    def move_forward(self, speed):
+        self.get_logger().info(
+            f'Move Forward | speed={speed:.2f} m/s'
+        )
+
+    def move_backward(self, speed):
+        self.get_logger().info(
+            f'Move Backward | speed={speed:.2f} m/s'
+        )
+
+    def turn_left(self, angular_speed):
+        self.get_logger().info(
+            f'Turn Left | angular speed={angular_speed:.2f} rad/s'
+        )
+
+    def turn_right(self, angular_speed):
+        self.get_logger().info(
+            f'Turn Right | angular speed={angular_speed:.2f} rad/s'
+        )
+
+    def stop(self):
+        self.get_logger().info(
+            'Motor Stop'
+        )
+
+    def move_combined(self, linear_speed, angular_speed):
+        direction = 'left' if angular_speed > 0.0 else 'right'
+
+        self.get_logger().info(
+            f'Combined Motion | '
+            f'linear speed={linear_speed:.2f} m/s, '
+            f'turning {direction}, '
+            f'angular speed={abs(angular_speed):.2f} rad/s'
+        )
 
 
 def main(args=None):
