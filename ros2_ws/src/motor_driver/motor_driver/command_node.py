@@ -18,10 +18,31 @@ class CommandNode(Node):
             10
         )
 
-        self.linear_speed = 0.5
-        self.angular_speed = 0.8
+        # ROS2 Parameter 선언
+        self.declare_parameter('linear_speed', 0.5)
+        self.declare_parameter('angular_speed', 0.8)
+
+        # 선언한 Parameter 값 가져오기
+        self.linear_speed = (
+            self.get_parameter('linear_speed')
+            .get_parameter_value()
+            .double_value
+        )
+
+        self.angular_speed = (
+            self.get_parameter('angular_speed')
+            .get_parameter_value()
+            .double_value
+        )
 
         self.get_logger().info('Keyboard Teleop Node Started!')
+
+        self.get_logger().info(
+            f'Initial parameters | '
+            f'linear_speed={self.linear_speed:.2f} m/s, '
+            f'angular_speed={self.angular_speed:.2f} rad/s'
+        )
+
         self.print_instructions()
 
     def print_instructions(self):
@@ -67,7 +88,6 @@ class CommandNode(Node):
         )
 
     def process_key(self, key):
-        # Raw terminal mode에서는 Ctrl+C가 '\x03'으로 입력된다.
         if key == '\x03':
             raise KeyboardInterrupt
 
@@ -96,6 +116,7 @@ class CommandNode(Node):
 
         elif key == 'q':
             self.linear_speed += 0.1
+
             self.get_logger().info(
                 f'Linear speed increased: '
                 f'{self.linear_speed:.2f} m/s'
@@ -183,7 +204,6 @@ def main(args=None):
         )
 
     finally:
-        # 종료 전에 정지 명령 전송
         node.publish_velocity()
 
         termios.tcsetattr(
