@@ -3,20 +3,25 @@ import math
 import rclpy
 from geometry_msgs.msg import Twist
 from rclpy.node import Node
+from rclpy.qos import QoSProfile
 
 
 class MotorDriverNode(Node):
     def __init__(self):
         super().__init__('motor_driver_node')
 
-        # Logger 객체 저장
         self.logger = self.get_logger()
+
+        # DN-015: Publisher와 동일한 QoS Profile 사용
+        self.qos_profile = QoSProfile(
+            depth=10
+        )
 
         self.subscription = self.create_subscription(
             Twist,
             '/cmd_vel',
             self.velocity_command_callback,
-            10
+            self.qos_profile
         )
 
         self.logger.info(
@@ -24,32 +29,40 @@ class MotorDriverNode(Node):
         )
 
         self.logger.info(
-            'Waiting for velocity commands on /cmd_vel.'
+            'QoS Profile configured | '
+            'history=KEEP_LAST, depth=10'
+        )
+
+        self.logger.info(
+            'Waiting for velocity commands '
+            'on /cmd_vel.'
         )
 
     def velocity_command_callback(self, msg):
         linear_x = msg.linear.x
         angular_z = msg.angular.z
 
-        # 수신한 원시 값을 상세 진단용으로 기록
         self.logger.debug(
             f'Raw Twist received | '
             f'linear.x={linear_x}, '
             f'angular.z={angular_z}'
         )
 
-        # NaN, infinity 등 비정상 수치 검사
         if not math.isfinite(linear_x):
             self.logger.error(
-                f'Invalid linear velocity received: {linear_x}'
+                f'Invalid linear velocity received: '
+                f'{linear_x}'
             )
+
             self.stop()
             return
 
         if not math.isfinite(angular_z):
             self.logger.error(
-                f'Invalid angular velocity received: {angular_z}'
+                f'Invalid angular velocity received: '
+                f'{angular_z}'
             )
+
             self.stop()
             return
 
@@ -130,7 +143,8 @@ class MotorDriverNode(Node):
             f'Combined Motion | '
             f'linear speed={linear_speed:.2f} m/s, '
             f'turning={direction}, '
-            f'angular speed={abs(angular_speed):.2f} rad/s'
+            f'angular speed='
+            f'{abs(angular_speed):.2f} rad/s'
         )
 
 
@@ -150,7 +164,8 @@ def main(args=None):
 
     except Exception as error:
         node.logger.error(
-            f'Unexpected Motor Driver error: {error}'
+            f'Unexpected Motor Driver error: '
+            f'{error}'
         )
         raise
 
