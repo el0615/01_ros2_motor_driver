@@ -1,3 +1,5 @@
+import math
+
 import rclpy
 from geometry_msgs.msg import Twist
 from rclpy.node import Node
@@ -7,6 +9,9 @@ class MotorDriverNode(Node):
     def __init__(self):
         super().__init__('motor_driver_node')
 
+        # Logger 객체 저장
+        self.logger = self.get_logger()
+
         self.subscription = self.create_subscription(
             Twist,
             '/cmd_vel',
@@ -14,31 +19,61 @@ class MotorDriverNode(Node):
             10
         )
 
-        self.get_logger().info(
+        self.logger.info(
             'Motor Driver Node Started!'
+        )
+
+        self.logger.info(
+            'Waiting for velocity commands on /cmd_vel.'
         )
 
     def velocity_command_callback(self, msg):
         linear_x = msg.linear.x
         angular_z = msg.angular.z
 
-        self.get_logger().info(
+        # 수신한 원시 값을 상세 진단용으로 기록
+        self.logger.debug(
+            f'Raw Twist received | '
+            f'linear.x={linear_x}, '
+            f'angular.z={angular_z}'
+        )
+
+        # NaN, infinity 등 비정상 수치 검사
+        if not math.isfinite(linear_x):
+            self.logger.error(
+                f'Invalid linear velocity received: {linear_x}'
+            )
+            self.stop()
+            return
+
+        if not math.isfinite(angular_z):
+            self.logger.error(
+                f'Invalid angular velocity received: {angular_z}'
+            )
+            self.stop()
+            return
+
+        self.logger.info(
             f'Received velocity command | '
-            f'linear.x={linear_x:.2f}, '
-            f'angular.z={angular_z:.2f}'
+            f'linear.x={linear_x:.2f} m/s, '
+            f'angular.z={angular_z:.2f} rad/s'
         )
 
         if linear_x > 0.0 and angular_z == 0.0:
             self.move_forward(linear_x)
 
         elif linear_x < 0.0 and angular_z == 0.0:
-            self.move_backward(abs(linear_x))
+            self.move_backward(
+                abs(linear_x)
+            )
 
         elif linear_x == 0.0 and angular_z > 0.0:
             self.turn_left(angular_z)
 
         elif linear_x == 0.0 and angular_z < 0.0:
-            self.turn_right(abs(angular_z))
+            self.turn_right(
+                abs(angular_z)
+            )
 
         elif linear_x == 0.0 and angular_z == 0.0:
             self.stop()
@@ -50,37 +85,51 @@ class MotorDriverNode(Node):
             )
 
     def move_forward(self, speed):
-        self.get_logger().info(
-            f'Move Forward | speed={speed:.2f} m/s'
+        self.logger.info(
+            f'Move Forward | '
+            f'speed={speed:.2f} m/s'
         )
 
     def move_backward(self, speed):
-        self.get_logger().info(
-            f'Move Backward | speed={speed:.2f} m/s'
+        self.logger.info(
+            f'Move Backward | '
+            f'speed={speed:.2f} m/s'
         )
 
     def turn_left(self, angular_speed):
-        self.get_logger().info(
-            f'Turn Left | angular speed={angular_speed:.2f} rad/s'
+        self.logger.info(
+            f'Turn Left | '
+            f'angular speed={angular_speed:.2f} rad/s'
         )
 
     def turn_right(self, angular_speed):
-        self.get_logger().info(
-            f'Turn Right | angular speed={angular_speed:.2f} rad/s'
+        self.logger.info(
+            f'Turn Right | '
+            f'angular speed={angular_speed:.2f} rad/s'
         )
 
     def stop(self):
-        self.get_logger().info(
-            'Motor Stop'
+        self.logger.info(
+            'Motor Stop | '
+            'linear speed=0.00 m/s, '
+            'angular speed=0.00 rad/s'
         )
 
-    def move_combined(self, linear_speed, angular_speed):
-        direction = 'left' if angular_speed > 0.0 else 'right'
+    def move_combined(
+        self,
+        linear_speed,
+        angular_speed
+    ):
+        direction = (
+            'left'
+            if angular_speed > 0.0
+            else 'right'
+        )
 
-        self.get_logger().info(
+        self.logger.info(
             f'Combined Motion | '
             f'linear speed={linear_speed:.2f} m/s, '
-            f'turning {direction}, '
+            f'turning={direction}, '
             f'angular speed={abs(angular_speed):.2f} rad/s'
         )
 
@@ -94,11 +143,22 @@ def main(args=None):
         rclpy.spin(node)
 
     except KeyboardInterrupt:
-        node.get_logger().info(
-            'Keyboard interrupt received.'
+        node.logger.info(
+            'Keyboard interrupt received. '
+            'Motor Driver Node is shutting down.'
         )
 
+    except Exception as error:
+        node.logger.error(
+            f'Unexpected Motor Driver error: {error}'
+        )
+        raise
+
     finally:
+        node.logger.info(
+            'Destroying Motor Driver Node.'
+        )
+
         node.destroy_node()
 
         if rclpy.ok():
